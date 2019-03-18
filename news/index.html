@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>新闻</title>
+    <link rel="stylesheet" href="bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="bootstrap/css/bootstrap-theme.min.css">
+    <!--模态框-->
+    <script src="https://cdn.staticfile.org/jquery/2.1.1/jquery.min.js"></script>
+    <script src="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <style>
+        #main{
+            width: 100%;
+            /*background-color: #269abc;*/
+        }
+        td,th{
+            height: 40px;
+            line-height: 40px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div id="main">
+    <!--表单-->
+    <div class="row">
+        <div class="col-md-8 col-md-offset-2" style="background-color: white">
+            <div>
+                <form class="form-horizontal">
+                        <label style="font-size: 20px">新增</label>
+                        <div class="form-group">
+                            <label for="inputtitle" class="col-sm-1 control-label">标题</label>
+                            <div class="col-sm-6">
+                                <input type="text" name="title" class="form-control" id="inputtitle" placeholder="title">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <!--<label for="inputcontent" class="col-sm-1 control-label">内容</label>-->
+                            <div class="col-sm-6">
+                                <textarea type="text" name="content" class="form-control" id="editor_id" placeholder="Password"></textarea>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-info" style="margin-left: 15px">发布</button>
+                        </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!--表格-->
+    <div class="row">
+        <div class="col-md-8 col-md-offset-2" style="background-color: white">
+            <table class="table table-striped table-hover"  style="background-color: #e1e1e1;float:left;">
+                <caption style="font-size: 18px">新闻列表</caption>
+                <thead style="background-color: #269abc;color: whitesmoke">
+                <tr>
+                    <th>序号</th>
+                    <th>标题</th>
+                    <!--<th>内容</th>-->
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody id="list">
+
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!--弹出模块框-->
+    <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                    <h3 class="modal-title" id="myModalLabel" style="text-align: center">标题</h3>
+                </div>
+                <div class="modal-body" id="newsTxt" style="font-size: 18px;line-height: 40px">新闻内容</div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">关闭</button>
+                    <!--<button type="button" class="btn btn-primary">提交更改</button>-->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="js/jquery-1.12.4.min.js"></script>
+<!--在线编辑器-->
+<script src="kindeditor/kindeditor-all-min.js"></script>
+<script src="kindeditor/lang/zh-CN.js"></script>
+<script>
+    // 在线编辑器
+    KindEditor.ready(function(K) {
+        window.editor = K.create('#editor_id',{
+            items:[
+                'source', '|', 'undo', 'redo', '|', 'preview', 'print', 'template', 'code', 'cut', 'copy', 'paste',
+                'plainpaste', 'wordpaste', '|', 'justifyleft', 'justifycenter', 'justifyright',
+                'justifyfull', 'insertorderedlist', 'insertunorderedlist', 'indent', 'outdent', 'subscript',
+                'superscript', 'clearhtml', 'quickformat', 'selectall', '|', 'fullscreen', '/',
+                'formatblock', 'fontname', 'fontsize', '|', 'forecolor', 'hilitecolor', 'bold',
+                'italic', 'underline', 'strikethrough', 'lineheight', 'removeformat', '|', 'image', 'multiimage',
+                'flash', 'media', 'insertfile', 'table', 'hr', 'emoticons', 'baidumap', 'pagebreak',
+                'anchor', 'link', 'unlink', '|', 'about'
+            ]
+        });
+    });
+    $(function () {
+        var form = $('form:first');
+        loadData();
+        form.submit(function (e) {
+            e.preventDefault();
+            // 编辑器
+            editor.sync();
+
+            console.log(form.serializeArray());
+            $.post('/api/news',{
+                type:$('[type="submit"]').html()=='发布'?'add':'edit',
+                data:form.serializeArray(),
+                id:$('[type="submit"]').data('id')
+            },function (result) {
+                alert(result.msg);
+                if(result.flag){
+                    loadData();
+                    form.trigger('reset');
+                    editor.html('');
+                    $('[type="submit"]').html('新增');
+                }
+            })
+        });
+    })
+    //删除按钮
+    function del(id) {
+        if(confirm('您确定要删除吗？')){
+            $.get('/api/news?type=del&id='+id,function (result) {
+                alert(result.msg);
+                if(result.flag){
+                    loadData();
+                }
+            })
+        }
+    }
+    //编辑按钮
+    function edit(id) {
+        $.get('/api/news?type=get&id='+id,function (result) {
+            console.log(result);
+            $('[name="title"]').val(result[0].title);
+            // $('[name="content"]').val(result[0].content);
+            editor.html(result[0].content);
+            $('[type="submit"]').html('修改').data('id',result[0].id);
+        })
+    }
+
+    //查看按钮
+    function show(id) {
+        var newsTxt = document.getElementById('newsTxt');
+        var newsTitle = $('#myModalLabel');
+        // var newsTxt = $('#newsTxt')
+        $.get('/api/news?type=get&id='+id, function (result) {
+            newsTxt.innerHTML=result[0].content;
+            newsTitle.html(result[0].title);
+            // newsTxt.html(result[0].content);
+        })
+    }
+
+    function loadData() {
+        $.get('/api/news?timestrap='+(new Date()).getTime(),function (result) {
+            $('#list').empty();
+            $(result).each(function (i,data) {
+                $('#list').append(
+                    $('<tr>').append(
+                        $('<td>').html(data.id*1)
+                    ).append(
+                        $('<td onclick="show('+data.id*1+')">').html(data.title)
+                    )
+                        // .append(
+                        // $('<td style="display: none">').html(data.content))
+                        .append(
+                        $('<td>').html(
+                            '<button class="btn btn-info" style="margin-right: 5px" onclick="edit('+data.id*1+')"><a href="#" style="color: white;text-decoration: none">编辑</a></button>' +
+                            '<button class="btn btn-warning" style="margin-right: 5px" onclick="del('+data.id*1+')">删除</button>' +
+                            '<button class="btn btn-primary " data-toggle="modal" data-target="#myModal" onclick="show('+data.id*1+')">查看</button>'
+                        )
+                    )
+                )
+            })
+        },'json');
+    }
+</script>
+</body>
+</html>
